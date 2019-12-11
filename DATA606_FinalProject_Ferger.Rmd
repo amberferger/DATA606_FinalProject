@@ -1,0 +1,214 @@
+---
+title: "DATA 606 Data Final Project"
+author: "Amber Ferger"
+output: pdf_document
+---
+
+
+```{r echo=FALSE, message = FALSE, error = FALSE}
+
+library(dplyr)
+library(tidyverse)
+
+# load data
+religionData <- as_tibble(read.csv('https://raw.githubusercontent.com/amberferger/DATA606_FinalProject/master/religionData.csv',stringsAsFactors = FALSE))
+
+
+```
+
+
+### Part 1 - Introduction
+My research question is: **Is there a relationship between age, income, and region and an individual's comfort level with public religious displays?** I care about this particular subject because in an ever increasingly polar political world, it is important to understand the general beliefs and viewpoints of individuals from all facets of life. Understanding whether demographics play a role in religious comfort level can help us better empathize with individuals from all walks of life. This in turn can help to guide discussions and aid in decision making.  
+
+
+### Part 2 - Data
+
+- **Data collection:** This data was collected using a SurveyMonkey poll, conducted between July 29 and August 1, 2016. The survey asked 661 respondents questions about public displays of religion. Source data can be found here: https://github.com/fivethirtyeight/data/tree/master/religion-survey
+- **Cases:**  Each case represents a respondent's survey answers. There are a total of 979 cases in the dataset.
+- **Variables:** The dependent (response) variable is comfort level and it is numeric. The independent variables are Age (quantitative), Income (quantitative), and Region (qualitative).
+- **Type of study:** This is a survey, which is a type of observational study. 
+- **Scope of inference - generalizability:** The population of interest is all adult individuals within the US. I don't believe this information can be generalized to the population as a whole because it inherently eliminates individuals that do not have access to a computer, which could be entire geographic regions. Additionally, although we know that the SurveyMonkey Audience service was used to generate survey participants, we don't know what the actual methodology was for selecting the individuals that the link was sent to, so it might not represent the population as a whole. Finally, the survey results could contain bias as a result of non-response. It is possible that those that chose not to respond to the survey differ drastically from those that did respond.
+- **Scope of inference - causality:** By nature, surveys cannot be used to establish causal links between the variables of interest. We can identify whether there is a relationship between the two variables, but correlation does not imply causation. 
+
+### Part 3 - Exploratory data analysis
+
+**Data Cleansing**
+
+There are a number of fields within this dataset, so I am going to subset it only to general demographics and survey responses related to the comfort of seeing religious actions outside of the respondent's religion.
+
+``` {r}
+# rename columns
+colNames <- c('RELIGION','RELIGION2', 'EVANGELICAL', 'RELIGIOUS_SERVICES', 'FREQ_PRAY_WITH_MOTIONS', 'FREQ_PRAY_WITH_OBJECTS', 'FREQ_PRAY_BEFORE_MEALS',
+'FREQ_PRAY_FOR_OTHERS', 'FREQ_ASK_TO_PRAY_WITH_SOMEONE', 'FREQ_BRING_UP_RELIGION',
+'FREQ_ASK_ABOUT_RELIGION', 'FREQ_DECLINE_FOOD_FOR_RELIGION', 'FREQ_WEAR_RELIGIOUS_CLOTHING', 'FREQ_PARTICIPATE_IN_PUBLIC_RELIGIOUS_EVENT',
+
+'COMFORT_OWN_PRAY_WITH_MOTIONS',
+'COMFORT_OWN_PRAY_WITH_OBJECTS',
+'COMFORT_OWN_PRAY_BEFORE_MEALS',
+'COMFORT_OWN_PRAY_FOR_OTHERS',
+'COMFORT_OWN_ASK_TO_PRAY_WITH_SOMEONE',
+'COMFORT_OWN_BRING_UP_RELIGION',
+'COMFORT_OWN_ASK_ABOUT_RELIGION',
+'COMFORT_OWN_DECLINE_FOOD_FOR_RELIGION',
+'COMFORT_OWN_WEAR_RELIGIOUS_CLOTHING',
+'COMFORT_OWN_PARTICIPATE_IN_PUBLIC_RELIGIOUS_EVENT',
+
+'COMFORT_OTHER_PRAY_WITH_MOTIONS', 'COMFORT_OTHER_PRAY_WITH_OBJECTS', 'COMFORT_OTHER_PRAY_BEFORE_MEALS', 'COMFORT_OTHER_PRAY_FOR_OTHERS', 'COMFORT_OTHER_ASK_TO_PRAY_WITH_SOMEONE', 'COMFORT_OTHER_BRING_UP_RELIGION', 'COMFORT_OTHER_ASK_ABOUT_RELIGION', 'COMFORT_OTHER_DECLINE_FOOD_FOR_RELIGION',
+'COMFORT_OTHER_WEAR_RELIGIOUS_CLOTHING', 'COMFORT_OTHER_PARTICIPATE_IN_PUBLIC_RELIGIOUS_EVENT', 'COMFORT_SEE_OTHER_PRAY_WITH_MOTIONS', 'COMFORT_SEE_OTHER_PRAY_WITH_OBJECTS', 'COMFORT_SEE_OTHER_PRAY_BEFORE_MEALS', 'COMFORT_SEE_OTHER_PRAY_FOR_OTHERS', 'COMFORT_SEE_OTHER_ASK_TO_PRAY_WITH_SOMEONE', 'COMFORT_SEE_OTHER_BRING_UP_RELIGION',
+'COMFORT_SEE_OTHER_ASK_ABOUT_RELIGION', 'COMFORT_SEE_OTHER_DECLINE_FOOD_FOR_RELIGION', 'COMFORT_SEE_OTHER_WEAR_RELIGIOUS_CLOTHING', 'COMFORT_SEE_OTHER_PARTICIPATE_IN_PUBLIC_RELIGIOUS_EVENT', 'AGE', 'GENDER', 'HOUSEHOLD_SALARY', 'US_REGION')
+
+names(religionData) <- colNames
+
+colsToKeep <- c('COMFORT_SEE_OTHER_PRAY_WITH_MOTIONS', 'COMFORT_SEE_OTHER_PRAY_WITH_OBJECTS', 'COMFORT_SEE_OTHER_PRAY_BEFORE_MEALS', 'COMFORT_SEE_OTHER_PRAY_FOR_OTHERS', 'COMFORT_SEE_OTHER_ASK_TO_PRAY_WITH_SOMEONE', 'COMFORT_SEE_OTHER_BRING_UP_RELIGION',
+'COMFORT_SEE_OTHER_ASK_ABOUT_RELIGION', 'COMFORT_SEE_OTHER_DECLINE_FOOD_FOR_RELIGION', 'COMFORT_SEE_OTHER_WEAR_RELIGIOUS_CLOTHING', 'COMFORT_SEE_OTHER_PARTICIPATE_IN_PUBLIC_RELIGIOUS_EVENT', 'AGE', 'GENDER', 'HOUSEHOLD_SALARY', 'US_REGION')
+
+religionData <- religionData %>%
+  filter(RELIGION != 'Response' & HOUSEHOLD_SALARY != 'Prefer not to answer' & US_REGION != '') %>%
+  select(colsToKeep)
+
+```
+
+In order to quantify each individual's comfort with public religious displays, I will convert the categorical features to numeric. First, I will rank each survey response in order of comfort (with Not at all comfortable having the lowest ranking and Extremely comfortable having the highest ranking). Since the columns are already ordered, the numerical values should maintain the hierarchy. Next, I will compute an average ranking across survey responses. The new variable called *AVERAGE_RANKING* contains this information.
+``` {r} 
+comfortColumns <- seq(1:10)
+
+for (i in comfortColumns) {
+  religionData[[i]] <- factor(religionData[[i]], levels = c("", "Response", "Not at all comfortable", "Not so comfortable", "Somewhat comfortably", "Very comfortable", "Extremely comfortable"), ordered = TRUE)
+  
+}
+
+# eliminate records where any of the survey responses are blank
+toBeRemoved<-which(religionData$COMFORT_SEE_OTHER_PRAY_WITH_MOTIONS==""|religionData$COMFORT_SEE_OTHER_PRAY_WITH_OBJECTS==""|religionData$COMFORT_SEE_OTHER_PRAY_BEFORE_MEALS==""|religionData$COMFORT_SEE_OTHER_PRAY_FOR_OTHERS==""|religionData$COMFORT_SEE_OTHER_ASK_TO_PRAY_WITH_SOMEONE==""|religionData$COMFORT_SEE_OTHER_BRING_UP_RELIGION==""|religionData$COMFORT_SEE_OTHER_ASK_ABOUT_RELIGION==""|religionData$COMFORT_SEE_OTHER_DECLINE_FOOD_FOR_RELIGION==""|religionData$COMFORT_SEE_OTHER_WEAR_RELIGIOUS_CLOTHING==""|religionData$COMFORT_SEE_OTHER_PARTICIPATE_IN_PUBLIC_RELIGIOUS_EVENT=="")
+
+religionData<-religionData[-toBeRemoved,]
+
+religionData$AVERAGE_RATING <- 0
+
+
+# loop through all survey questions and convert each response to a number 
+# add number to the AVERAGE_RATING column
+for (i in comfortColumns) {
+  religionData[[i]]<-as.numeric(religionData[[i]])
+  religionData$AVERAGE_RATING <- religionData$AVERAGE_RATING + religionData[[i]]
+}
+
+# final average rating
+religionData$AVERAGE_RATING <- religionData$AVERAGE_RATING/10
+
+```
+
+The last thing we need to do is convert our age and household income variables to numeric. We will use the lower bound in each of the variables to represent the number. 
+
+``` {r}
+lookup1 <- data.frame(AGE=c('18 - 29','30 - 44','45 - 59','60+'), NUMERIC_AGE=c(18,30,45,60))
+lookup2 <- data.frame(HOUSEHOLD_SALARY=c('$0 to $9,999','$10,000 to $24,999','$25,000 to $49,999','$50,000 to $74,999', '$75,000 to $99,999', '$100,000 to $124,999', '$125,000 to $149,999', '$150,000 to $174,999', '$175,000 to $199,999', '$200,000 and up'), NUMERIC_INCOME=c(0,10000,25000,50000,75000,100000,125000,150000,175000,200000))
+
+lookupData <- merge(religionData, lookup1, by="AGE")
+lookupData2 <- merge(lookupData, lookup2, by ="HOUSEHOLD_SALARY")
+lookupData2$AGE <- lookupData2$NUMERIC_AGE
+lookupData2$HOUSEHOLD_SALARY <- lookupData2$NUMERIC_INCOME
+religionData <- lookupData2
+
+```
+
+**Summary Statistics **
+
+The summary statistics show that the average comfort with religious displays is ~5.613, with a min value of 3 and a max value of 7. We can see from the histogram of average ratings that our data is relatively normal with a left-skew. 
+``` {r, message = FALSE}
+summary(religionData$AVERAGE_RATING)
+
+ggplot(religionData, aes(x=AVERAGE_RATING))+ geom_histogram()
+
+```
+
+
+**AGE: **
+A first glance at the Age variable shows that there isn't much variability in comfort rating between age groups. 
+``` {r}
+religionData %>%
+  group_by(AGE) %>%
+  summarise(MEAN_BY_AGE = mean(AVERAGE_RATING),
+            MEDIAN_BY_AGE = median(AVERAGE_RATING),
+            STDEV_BY_AGE = sd(AVERAGE_RATING)) 
+
+boxplot(religionData$AVERAGE_RATING~religionData$AGE)
+
+
+```
+
+**INCOME:** 
+A first glance at the Household Salary variable shows a similar output -- there doesn't appear to be much variability in average comfort ratings between groups. However, we do see a slightly higher comfort level from salary groups between \$10,000 and \$74,999.
+``` {r}
+
+religionData %>%
+  group_by(HOUSEHOLD_SALARY) %>%
+  summarise(MEAN_BY_SALARY = mean(AVERAGE_RATING),
+            MEDIAN_BY_SALARY = median(AVERAGE_RATING),
+            STDEV_BY_SALARY = sd(AVERAGE_RATING))  %>%
+  ungroup %>%
+  arrange(-MEAN_BY_SALARY)
+
+boxplot(religionData$AVERAGE_RATING~religionData$HOUSEHOLD_SALARY)
+
+```
+
+
+**REGION:**
+And here's where it starts to get more interesting. It looks like there might be a true difference in comfort rating due to geographic region. 
+``` {r}
+
+religionData %>%
+  group_by(US_REGION) %>%
+  summarise(MEAN_BY_REGION = mean(AVERAGE_RATING),
+            MEDIAN_BY_REGION = median(AVERAGE_RATING),
+            STDEV_BY_REGION = sd(AVERAGE_RATING)) %>%
+  ungroup %>%
+  arrange(-MEAN_BY_REGION)
+
+
+boxplot(religionData$AVERAGE_RATING~religionData$US_REGION)
+
+```
+
+
+### Part 4 - Inference
+
+I will be doing a multiple regression in order to identify if there is a relationship between salary, region, age, and comfort level. 
+
+``` {r}
+
+model <- lm(AVERAGE_RATING ~ HOUSEHOLD_SALARY + US_REGION + AGE, data = religionData)
+summary(model)
+
+```
+
+The coefficients of each variable tell us the amount of increase in comfort as a result of a particular value. For example, if a person is from the West South Central region, they have an average comfort level that is 0.1123 points lower than someone who is not. 
+
+Our final model shows that none of the variables are significant enough to reject the null hypothesis (p-value for each variable is > 0.05). There is one that comes close - The US Mountain region, but it is not low enough to accept the alternative hypothesis. 
+
+Additionally, we can see that the R^2 value is 0.01208, which tells us that only 12% of the variability in the model is explained by these factors.
+
+**Checking conditions**
+``` {r}
+
+plot(model$residuals ~ religionData$AVERAGE_RATING)
+abline(h = 0, lty = 3)
+hist(model$residuals)
+qqnorm(model$residuals)
+qqline(model$residuals)
+
+```
+
+The residuals show us:
+
+- **Linearity:** Is not met - there appears to be a pattern in the residuals (increasing trend)
+- **Nearly Normal Residuals:** Aside from a slight left-skew, the residuals appear to be normally distributed
+- **Constant Variability:** This also does not pass. The tails of the residuals stray from the line. 
+
+
+### Part 5 - Conclusion
+From this analysis, we learned that there is not a statistically significant relationship between age, region, income, and average comfort with religious displays. Additionally, we learned that the raw data that was provided does not support proper inference, which means that we should re-evaluate the variables that were chosen to analyze. For future work, I would like to examine the relationships between some of the other variables included in this dataset (ex: gender, ethnicity). 
+
+
+### References
+FiveThirtyEight Data - https://github.com/fivethirtyeight/data/tree/master/religion-survey
