@@ -2,7 +2,7 @@
 **Course:** DATA 606 - Statistics and Probability for Data Analysis, CUNY SPS  
 **Description:** For the final project, we were asked to find a data set of interest, define a research question, and answer it using statistical techniques.  
 **Language:** R  
-**Packages:** tidyverse, dplyr
+**Packages:** tidyverse, dplyr  
 **Tags:** data analysis, data cleansing, data visualization, statistics  
 
 ### Research Question
